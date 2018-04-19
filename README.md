@@ -1,0 +1,159 @@
+# Perdiction-of-Credit-Rating
+Predictive Analytics for Credit Rating
+
+```{r}
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(e1071)
+library(randomForest)
+
+```
+
+
+
+
+## Function to convert to factors
+```{r}
+
+to.factors = function(credit, variables){
+  for (variable in variables) {
+    credit[variable] = as.factor(credit[[variable]])
+    
+  }
+  return(credit)
+}
+
+```
+
+
+```{r}
+
+credit = read.csv("D://credit.csv",header = T,sep = ",")
+dim(credit)
+```
+
+# Data Availibility
+```{r}
+x=c()
+for(i in 1:ncol(credit))
+{
+  nulls_count=length(which(is.na(credit[i])))
+  x=append(x,nulls_count)
+  print(nulls_count)
+}
+```
+
+```{r}
+x=c()
+num.na=colSums(is.na(credit))
+num.na
+
+num.na=colSums(!is.na(credit))*100/nrow(credit)
+num.na
+```
+
+## Converting variables to factors
+```{r}
+
+categorical.vars=c("credit.rating","account.balance","previous.credit.payment.status",
+                   "credit.purpose","savings","employment.duration","installment.rate",
+                   "marital.status","guarantor","residence.duration",
+                   "current.assets","other.credits","apartment.type","bank.credits",
+                   "occupation","dependents","telephone","foreign.worker")
+
+credit=to.factors(credit, categorical.vars)
+
+```
+
+Creating training and test data
+```{r}
+indexes=sample(1:nrow(credit),size = 0.7*nrow(credit))
+
+train.data=credit[indexes,]
+
+test.data=credit[-indexes,]
+
+```
+
+## Building a Random forest Model
+```{r}
+formula.init="credit.rating~."
+formula.init=as.formula(formula.init)
+formula.init
+
+
+
+
+rf.model=randomForest(formula.init,data=train.data,
+                      importance = T,proximity = T)
+
+
+rf.model
+```
+
+## Predicting the Credit Rating of the test data
+```{r}
+test.feature.vars=test.data[,-1]
+test.class.vars=test.data[,1]
+
+
+
+
+rf.predictions=predict(rf.model,test.feature.vars,
+                       type="class")
+rf.predictions
+```
+
+## Confusion Matrix to check the accuracy of our model
+```{r}
+confusionMatrix(data=rf.predictions,reference = test.class.vars,
+                positive = "1")
+
+```
+
+
+## Parameter tuning for our model
+```{r}
+nodesize.vals = c(2,3,4,5)
+ntree.vals = c(200, 500, 1000, 2000)
+tuning.results = tune.randomForest(formula.init,
+                                   data = train.data,
+                                   mtry = 3,
+                                   nodesize = nodesize.vals,
+                                   ntree = ntree.vals)
+print(tuning.results)
+
+
+```
+
+## important variables for our model
+```{r}
+rf.model$importance
+```
+
+## Buiding a model with the important variables
+```{r}
+formula.new="credit.rating~account.balance, previous.credit.payment.status,
+marital.status, apartment.type"
+formula.new=as.formula(formula.init)
+formula.new
+
+rf.model.best = tuning.results$best.model
+rf.predictions.best = predict(rf.model.best, test.feature.vars,
+                              type = "class")
+
+
+```
+
+
+## Confusion matrix for our tuned model
+```{r}
+confusionMatrix(data=rf.predictions.best,
+                reference = test.class.vars, positive = "1")
+
+
+```
+
+
